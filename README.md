@@ -27,7 +27,7 @@ Bedfellows is a command-line application:
     python main.py cycle new
 ```
 
-Note that it is required that a database containing tables fec_committee_contributions, fec_candidates and fec_committees be specified as the  third parameter. To assist users, we've provided versions of each with data for the 2010, 2012 and 2014 cycles. Download SQL dump files here:
+Note that it is required that a database containing tables fec_committee_contributions, fec_candidates and fec_committees be specified as the  third parameter. To assist users, we've provided versions of each with data for the 2006, 2008, 2010, 2012, 2014, 2016 and 2018 cycles. Download CSV files here:
 
 * [fec_candidates](https://pp-data.s3.amazonaws.com/fec_candidates.csv.zip) (zipped)
 * [fec_committees](https://pp-data.s3.amazonaws.com/fec_committees.csv.zip) (zipped)
