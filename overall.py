@@ -11,9 +11,9 @@ INFINITY = 9999999999999
 
 def main(db):
     cursor = db.cursor()
-    print "Overall scores"
+    print("Overall scores")
 
-    option = raw_input("Do you want to compute scores or perform a similarity analysis of scores already computed? Enter 'compute', 'analyze' or 'both'.\n")
+    option = input("Do you want to compute scores or perform a similarity analysis of scores already computed? Enter 'compute', 'analyze' or 'both'.\n")
 
     if option == "compute" or option == "both":
         initial_setup(db, cursor)
@@ -46,12 +46,12 @@ def initial_setup(db, cursor):
     sql.append("UNLOCK TABLES;")
     sql.append("ALTER TABLE super_PACs_list ADD INDEX fecid (fecid);")
     commit_changes(db, cursor, sql)
-    print "Table super_PACs_list"
+    print("Table super_PACs_list")
 
     # Adds indexes to fec_committee_contributions before saving a constrained subset as fec_contributions.
     try:
         cursor.execute("ALTER TABLE fec_committee_contributions ADD INDEX combo (transaction_type, entity_type, date, fec_committee_id, other_id);")
-    except MySQLdb.Error, e:
+    except MySQLdb.Error as e:
         handle_error(db, e)
 
     # Constrains FEC's fec_committee_contributions table to our needs: select subset of attributes that will be useful in queries, constrain on transaction type '24K', entity type 'PAC', year 2003 or later, contributor and recipient not present in list of super PACs.
@@ -71,13 +71,13 @@ def initial_setup(db, cursor):
     sql.append("UNLOCK TABLES;")
     sql.append("ALTER TABLE fec_contributions ADD INDEX pair (fec_committee_id, other_id);")
     commit_changes(db, cursor, sql)
-    print "Table fec_contributions"
+    print("Table fec_contributions")
 
     try:
         setup_initial_indexes(db, cursor)
-    except MySQLdb.Error, e:
+    except MySQLdb.Error as e:
         handle_error(db, e)
-    print "Initial setup done"
+    print("Initial setup done")
 
 
 def setup_initial_indexes(db, cursor):
@@ -108,7 +108,7 @@ def compute_exclusivity_scores(db, cursor):
     sql.append("UNLOCK TABLES;")
     sql.append("ALTER TABLE total_donated_by_contributor ADD INDEX combo (fec_committee_id, contributor_name, total_by_PAC);")
     commit_changes(db, cursor, sql)
-    print "Table total_donated_by_contributor"
+    print("Table total_donated_by_contributor")
 
     # Then, computes exclusivity score for a given contributor/recipient pair. Score is calculated as follows: amount given to recipient as percentage of total donated by contributor.
     # No need for normalization because scores are capped at 1, so 0-1 scale is already enforced.
@@ -127,7 +127,7 @@ def compute_exclusivity_scores(db, cursor):
     sql.append("UNLOCK TABLES;")
     sql.append("ALTER TABLE exclusivity_scores ADD INDEX pairs (fec_committee_id, other_id, contributor_name);")
     commit_changes(db, cursor, sql)
-    print "Table exclusivity_scores"
+    print("Table exclusivity_scores")
 
 
 def compute_report_type_scores(db, cursor):
@@ -143,22 +143,22 @@ def compute_report_type_scores(db, cursor):
                 weight INT(2));""")
         cursor.execute("LOCK TABLES report_type_weights WRITE;")
         db.commit()
-    except MySQLdb.Error, e:
+    except MySQLdb.Error as e:
         handle_error(db, e)
     for index, r in enumerate(rows):
     	try:
             if index != 0:
                cursor.execute("INSERT INTO report_type_weights (report_type, year_parity, weight) VALUES ('%s','%s','%s')" % (r[0], r[1], r[2]))
                db.commit()
-        except MySQLdb.Error, e:
+        except MySQLdb.Error as e:
             handle_error(db, e)
     try:
         cursor.execute("UNLOCK TABLES;")
         cursor.execute("ALTER TABLE report_type_weights ADD INDEX weights (report_type, year_parity, weight);")
         db.commit()
-    except MySQLdb.Error, e:
+    except MySQLdb.Error as e:
         handle_error(db, e)
-    print "Table report_type_weights"
+    print("Table report_type_weights")
 
     # Next, computes how often each report type occurs for each pair, split by parity.
     sql = []
@@ -177,7 +177,7 @@ def compute_report_type_scores(db, cursor):
     sql.append("UNLOCK TABLES;")
     sql.append("ALTER TABLE report_type_count_by_pair ADD INDEX (fec_committee_id, other_id);")
     commit_changes(db, cursor, sql)
-    print "Table report_type_count_by_pair"
+    print("Table report_type_count_by_pair")
 
     # Then, counts how many times each contributor/recipient pair occurs in database (i.e. how many times contributor donated to recipient.)
     sql = []
@@ -191,7 +191,7 @@ def compute_report_type_scores(db, cursor):
     sql.append("UNLOCK TABLES;")
     sql.append("ALTER TABLE pairs_count ADD INDEX (fec_committee_id, other_id, count);")
     commit_changes(db, cursor, sql)
-    print "Table pairs_count"
+    print("Table pairs_count")
 
     # Then, computes how often each report type occurs for a given contributor/recipient pair.
     sql = []
@@ -212,7 +212,7 @@ def compute_report_type_scores(db, cursor):
     sql.append("UNLOCK TABLES;")
     sql.append("ALTER TABLE report_type_frequency ADD INDEX (report_type, year_parity, fec_committee_id, contributor_name, other_id, recipient_name, report_type_frequency);")
     commit_changes(db, cursor, sql)
-    print "Table report_type_frequency"
+    print("Table report_type_frequency")
 
     # For each pair and report type, computes report type subscore as frequency of subscore for the pair times weight associated with report type. Overall score is simply sum of all subscores associated with a pair.
     sql = []
@@ -228,7 +228,7 @@ def compute_report_type_scores(db, cursor):
     sql.append("UNLOCK TABLES;")
     sql.append("ALTER TABLE unnormalized_report_type_scores ADD INDEX (fec_committee_id, contributor_name, other_id, recipient_name, report_type_score);")
     commit_changes(db, cursor, sql)
-    print "Table unnormalized_report_type_scores"
+    print("Table unnormalized_report_type_scores")
 
     # Finds maximum score in unnormalized_report_type_scores table.
     sql = []
@@ -239,7 +239,7 @@ def compute_report_type_scores(db, cursor):
     sql.append("INSERT INTO max_report_type_score (max_report_type_score) SELECT MAX(report_type_score) AS max_report_type_score FROM unnormalized_report_type_scores T;")
     sql.append("UNLOCK TABLES;")
     commit_changes(db, cursor, sql)
-    print "Table max_report_type_score"
+    print("Table max_report_type_score")
 
     # Finally, finds final scores by normalizing scores in table unnormalized_report_type_scores. Normalization is done by simply dividing all scores by maximum score stored in max_report_type_score table, so as to ensure scores fall in a scale from 0 to 1.
     sql = []
@@ -255,7 +255,7 @@ def compute_report_type_scores(db, cursor):
     sql.append("UNLOCK TABLES;")
     sql.append("ALTER TABLE report_type_scores ADD INDEX (fec_committee_id, other_id);")
     commit_changes(db, cursor, sql)
-    print "Table report_type_scores"
+    print("Table report_type_scores")
 
 def compute_periodicity_scores(db, cursor):
     # Computes unnormalized periodicity score as inverse of variance of dataset made up of donation dates associated with a given pair, where dates are mapped into a DAYOFYEAR data point (i.e. days passed since Jan 1st.)
@@ -274,7 +274,7 @@ def compute_periodicity_scores(db, cursor):
     sql.append("UNLOCK TABLES;")
     sql.append("ALTER TABLE unnormalized_periodicity_scores ADD INDEX (fec_committee_id, contributor_name, other_id, recipient_name, periodicity_score);")
     commit_changes(db, cursor, sql)
-    print "Table unnormalized_periodicity_scores"
+    print("Table unnormalized_periodicity_scores")
 
     # Finds maximum score in unnormalized_periodicity_scores table.
     sql = []
@@ -285,7 +285,7 @@ def compute_periodicity_scores(db, cursor):
     sql.append("INSERT INTO cap_unnormalized_score (cap_unnormalized_score) SELECT MIN(T.periodicity_score) FROM unnormalized_periodicity_scores T WHERE day_diff = 1;")
     sql.append("UNLOCK TABLES;")
     commit_changes(db, cursor, sql)
-    print "Table cap_unnormalized_score"
+    print("Table cap_unnormalized_score")
 
     # Finally, finds final scores by normalizing scores in table unnormalized_periodicity_scores. Normalization is done by simply dividing all scores by maximum score stored in cap_unnormalized_score table, so as to ensure scores fall in a scale from 0 to 1.
     sql = []
@@ -301,7 +301,7 @@ def compute_periodicity_scores(db, cursor):
     sql.append("UNLOCK TABLES;")
     sql.append("ALTER TABLE periodicity_scores ADD INDEX (fec_committee_id, other_id);")
     commit_changes(db, cursor, sql)
-    print "Table periodicity_scores"
+    print("Table periodicity_scores")
 
 
 def compute_maxed_out_scores(db, cursor):
@@ -323,7 +323,7 @@ def compute_maxed_out_scores(db, cursor):
     sql.append("UNLOCK TABLES;")
     sql.append("ALTER TABLE contributor_types ADD INDEX (fec_committee_id, cycle);")
     commit_changes(db, cursor, sql)
-    print "Table contributor_types"
+    print("Table contributor_types")
 
     # Creates 'recipient_types' table in which each recipient (uniquely identified by 'other_id', also described by 'recipient_name') is assigned a 'recipient_type'.
     # Possible values of 'recipient_type' are: 'national_party', 'other_party', 'pac', 'candidate'.
@@ -344,7 +344,7 @@ def compute_maxed_out_scores(db, cursor):
     sql.append("UNLOCK TABLES;")
     sql.append("ALTER TABLE recipient_types ADD INDEX (other_id, cycle);")
     commit_changes(db, cursor, sql)
-    print "Table recipient_types"
+    print("Table recipient_types")
 
     # Reads file limits.csv into database. File contains contribution limits for all combinations of contributor/recipient types.
     filename = "limits.csv"
@@ -359,7 +359,7 @@ def compute_maxed_out_scores(db, cursor):
                 contribution_limit FLOAT(10));""")
         cursor.execute("LOCK TABLES contribution_limits WRITE;")
         db.commit()
-    except MySQLdb.Error, e:
+    except MySQLdb.Error as e:
         handle_error(db, e)
     for index, row in enumerate(rows):
         if index == 0:
@@ -378,15 +378,15 @@ def compute_maxed_out_scores(db, cursor):
             cursor.execute("INSERT INTO contribution_limits (contributor_type, recipient_type, cycle, contribution_limit) VALUES ('%s','%s','%s','%s')" % (row[0], recipient_type_4, row[1], row[5]))
             try:
                 db.commit()
-            except MySQLdb.Error, e:
+            except MySQLdb.Error as e:
                 handle_error(db, e)
     try:
         cursor.execute("UNLOCK TABLES;")
         cursor.execute("ALTER TABLE contribution_limits ADD INDEX (contributor_type, recipient_type, cycle, contribution_limit);")
         db.commit()
-    except MySQLdb.Error, e:
+    except MySQLdb.Error as e:
         handle_error(db, e)
-    print "Table contribution_limits"
+    print("Table contribution_limits")
 
     # Joins table containing contributor types and recipient types with the contributions table.
     sql = []
@@ -406,7 +406,7 @@ def compute_maxed_out_scores(db, cursor):
     sql.append("UNLOCK TABLES;")
     sql.append("ALTER TABLE joined_contr_recpt_types ADD INDEX (contributor_type, recipient_type, cycle);")
     commit_changes(db, cursor, sql)
-    print "Table joined_contr_recpt_types"
+    print("Table joined_contr_recpt_types")
 
     # Associates each contributor/recipient pair with a contribution limit based on info from the contribution_limits table and computes maxed out subscore as quotient of amount donated over contribution limit.
     sql = []
@@ -428,7 +428,7 @@ def compute_maxed_out_scores(db, cursor):
     sql.append("UNLOCK TABLES;")
     sql.append("ALTER TABLE maxed_out_subscores ADD INDEX (fec_committee_id, other_id, cycle);")
     commit_changes(db, cursor, sql)
-    print "Table maxed_out_subscores"
+    print("Table maxed_out_subscores")
 
     # Remove from consideration contributors and recipients with subscore > 1, as we're not interested in these cases.
     sql = []
@@ -450,7 +450,7 @@ def compute_maxed_out_scores(db, cursor):
     sql.append("UNLOCK TABLES;")
     sql.append("ALTER TABLE inbound_maxed_out_subscores ADD INDEX (fec_committee_id, other_id, cycle);")
     commit_changes(db, cursor, sql)
-    print "Table inbound_maxed_out_subscores"
+    print("Table inbound_maxed_out_subscores")
 
     # Computes unnormalized maxed out score for a given contributor/recipient pair by summing over all subscore associated with pair.
     sql = []
@@ -468,7 +468,7 @@ def compute_maxed_out_scores(db, cursor):
     sql.append("UNLOCK TABLES;")
     sql.append("ALTER TABLE unnormalized_maxed_out_scores ADD INDEX (fec_committee_id, contributor_name, contributor_type, other_id, recipient_name, recipient_type, maxed_out_score);")
     commit_changes(db, cursor, sql)
-    print "Table unnormalized_maxed_out_scores"
+    print("Table unnormalized_maxed_out_scores")
 
     # Finds maximum score in unnormalized_maxed_out_scores table.
     sql = []
@@ -479,7 +479,7 @@ def compute_maxed_out_scores(db, cursor):
     sql.append("INSERT INTO max_maxed_out_score (max_maxed_out_score) SELECT MAX(maxed_out_score) AS max_maxed_out_score FROM unnormalized_maxed_out_scores T;")
     sql.append("UNLOCK TABLES;")
     commit_changes(db, cursor, sql)
-    print "Table max_maxed_out_score"
+    print("Table max_maxed_out_score")
 
     # Finally, finds final scores by normalizing scores in table unnormalized_maxed_out_scores. Normalization is done by simply dividing all scores by maximum score stored in max_maxed_out_score table, so as to ensure scores fall in a scale from 0 to 1.
     sql = []
@@ -497,7 +497,7 @@ def compute_maxed_out_scores(db, cursor):
     sql.append("UNLOCK TABLES;")
     sql.append("ALTER TABLE maxed_out_scores ADD INDEX (fec_committee_id, other_id);")
     commit_changes(db, cursor, sql)
-    print "Table maxed_out_scores"
+    print("Table maxed_out_scores")
 
 
 def compute_length_scores(db, cursor):
@@ -517,7 +517,7 @@ def compute_length_scores(db, cursor):
     sql.append("UNLOCK TABLES;")
     sql.append("ALTER TABLE unnormalized_length_scores ADD INDEX (fec_committee_id, contributor_name, other_id, recipient_name, max_date, min_date, length_score);")
     commit_changes(db, cursor, sql)
-    print "Table unnormalized_length_scores"
+    print("Table unnormalized_length_scores")
 
     # Finds maximum score in unnormalized_length_scores table.
     sql = []
@@ -528,7 +528,7 @@ def compute_length_scores(db, cursor):
     sql.append("INSERT INTO max_length_score (max_length_score) SELECT MAX(length_score) AS max_length_score FROM unnormalized_length_scores T;")
     sql.append("UNLOCK TABLES;")
     commit_changes(db, cursor, sql)
-    print "Table max_length_score"
+    print("Table max_length_score")
 
     # Finally, finds final scores by normalizing scores in table unnormalized_maxed_out_scores. Normalization is done by simply dividing all scores by maximum score stored in max_maxed_out_score table, so as to ensure scores fall in a scale from 0 to 1.
     sql = []
@@ -546,7 +546,7 @@ def compute_length_scores(db, cursor):
     sql.append("UNLOCK TABLES;")
     sql.append("ALTER TABLE length_scores ADD INDEX (fec_committee_id, other_id);")
     commit_changes(db, cursor, sql)
-    print "Table length_scores"
+    print("Table length_scores")
 
 
 def compute_race_focus_scores(db, cursor):
@@ -569,7 +569,7 @@ def compute_race_focus_scores(db, cursor):
     sql.append("UNLOCK TABLES;")
     sql.append("ALTER TABLE races_list ADD INDEX (fec_committee_id, cycle, district, office_state, branch, contributor_name);")
     commit_changes(db, cursor, sql)
-    print "Table races_list"
+    print("Table races_list")
 
     # Computes race focus score as inverse of number of races a contributor donates to. Note that this score is not associated with a contributor/recipient pair, but simply with a contributor.
     # No need for normalization due to methodology adopted. Since score is given the inverse of the count of number of races a PAC donates to, scores already fall on a 0-1 scale.
@@ -584,7 +584,7 @@ def compute_race_focus_scores(db, cursor):
     sql.append("UNLOCK TABLES;")
     sql.append("ALTER TABLE race_focus_scores ADD INDEX (fec_committee_id, race_focus_score);")
     commit_changes(db, cursor, sql)
-    print "Table race_focus_scores"
+    print("Table race_focus_scores")
 
 
 def compute_final_scores(db, cursor):
@@ -599,21 +599,21 @@ def compute_final_scores(db, cursor):
                 weight FLOAT(5));""")
         cursor.execute("LOCK TABLES score_weights WRITE;")
         db.commit()
-    except MySQLdb.Error, e:
+    except MySQLdb.Error as e:
         handle_error(db, e)
     for r in rows:
         try:
             cursor.execute("INSERT INTO score_weights (score_type, weight) VALUES ('%s','%s')" % (r[0], r[1]))
             db.commit()
-        except MySQLdb.Error, e:
+        except MySQLdb.Error as e:
             handle_error(db, e)
     try:
         cursor.execute("UNLOCK TABLES;")
         cursor.execute("ALTER TABLE score_weights ADD INDEX (score_type);")
         db.commit()
-    except MySQLdb.Error, e:
+    except MySQLdb.Error as e:
         handle_error(db, e)
-    print "Table score_weights"
+    print("Table score_weights")
 
     # Then, finds final scores by computing the weighted average of the five scores computed above: exclusivity_scores, report_type_scores, periodicity_scores, maxed_out_scores, race_focus_scores.
     # We start by joining the first four score tables: exclusivity_scores, report_type_scores, periodicity_scores, maxed_out_scores. We handle race_focus_score separately because this table assigns scores to contributors, rather than contributor/recipient pairs as the others.
@@ -636,7 +636,7 @@ def compute_final_scores(db, cursor):
     sql.append("UNLOCK TABLES;")
     sql.append("ALTER TABLE five_scores ADD INDEX (fec_committee_id, contributor_name, other_id, recipient_name, five_score);")
     commit_changes(db, cursor, sql)
-    print "Table five_scores"
+    print("Table five_scores")
 
     # Finally, we add weighted race_focus_scores to the five_scores table and get the full final score.
     sql = []
@@ -659,7 +659,7 @@ def compute_final_scores(db, cursor):
     sql.append("UNLOCK TABLES;")
     sql.append("ALTER TABLE final_scores ADD INDEX (fec_committee_id, other_id);")
     commit_changes(db, cursor, sql)
-    print "Table final_scores"
+    print("Table final_scores")
 
 
 def similarity_analysis(db, cursor):
@@ -669,7 +669,7 @@ def similarity_analysis(db, cursor):
     cursor.execute("SELECT fec_committee_id, other_id, final_score FROM final_scores;")
     try:
         rows = cursor.fetchall()
-    except MySQLdb.Error, e:
+    except MySQLdb.Error as e:
         handle_error(db, e)
     ratings_map = {}
     for r in rows:
@@ -678,33 +678,33 @@ def similarity_analysis(db, cursor):
         ratings_map[r[0]][r[1]] = r[2]
     adj_matrix = DataFrame(ratings_map).T.fillna(0)
     adj_matrix_T = adj_matrix.T
-    print "Adjacency matrix computed."
+    print("Adjacency matrix computed.")
 
     cursor.execute("SELECT fec_committee_id, other_id, exclusivity_score, report_type_score, periodicity_score, maxed_out_score, length_score, race_focus_score FROM final_scores;")
     try:
         rows = cursor.fetchall()
-    except MySQLdb.Error, e:
+    except MySQLdb.Error as e:
         handle_error(db, e)
 
     pair_score_map = {}
     for r in rows:
         pair_score_map[(r[0],r[1])] = ([r[2],r[3],r[4],r[5],r[6],r[7]])
-    print "Pair-score dictionary computed."
+    print("Pair-score dictionary computed.")
 
     # Now use adjacency matrix to perform similarity analysis.
     while (True):
         # Ask user to input kind of similarity analysis to be performed.
         # Options: 1. Find contributors similar to a given contributor, 2. Find recipients similar to a given recipient, 3. Find pairs similar to a given pair.
-        analysis = raw_input("What kind of similarity analysis are you interested in? Type the number representing any of the following: \n 1. Find contributors similar to a given contributor. \n 2. Find recipients similar to a given recipient. \n 3. Find pairs similar to a given pair. \n Bedfellows is currently set to display a list of top " + str(RANK_THRESHOLD) + " results. If you would like to change this setting, type 4. \n Type anything else to exit. \n")
+        analysis = input("What kind of similarity analysis are you interested in? Type the number representing any of the following: \n 1. Find contributors similar to a given contributor. \n 2. Find recipients similar to a given recipient. \n 3. Find pairs similar to a given pair. \n Bedfellows is currently set to display a list of top " + str(RANK_THRESHOLD) + " results. If you would like to change this setting, type 4. \n Type anything else to exit. \n")
 
         # Measure cosine similarity between different contributors. Each contributor is represented by a vector of final scores of pairs it belongs to.
         if analysis == "1":
-            fec_committee_id = raw_input("Enter contributor committee's id: \n")
+            fec_committee_id = input("Enter contributor committee's id: \n")
             try:
                 check_contributor_id(fec_committee_id)
             except:
-                print "Invalid committee id, try again."
-                fec_committee_id = raw_input("Enter contributor committee's id: \n")
+                print("Invalid committee id, try again.")
+                fec_committee_id = input("Enter contributor committee's id: \n")
             try: 
                 cosine_sim = {}
                 for j in range(1,adj_matrix.shape[0]):
@@ -712,29 +712,29 @@ def similarity_analysis(db, cursor):
 
                 cursor.execute("SELECT contributor_name FROM fec_contributions WHERE fec_committee_id = '" + fec_committee_id + "';")
                 contributor_name = cursor.fetchone()[0]
-            except MySQLdb.Error, e:
+            except MySQLdb.Error as e:
                 handle_error(db, e)
-            print "Top " + str(RANK_THRESHOLD) + " contributors most similar to " + fec_committee_id + " " + contributor_name + " along with cosine similarity scores are:"
+            print("Top " + str(RANK_THRESHOLD) + " contributors most similar to " + fec_committee_id + " " + contributor_name + " along with cosine similarity scores are:")
 
             for index, w in enumerate(sorted(cosine_sim, key=cosine_sim.get, reverse=True)):
                 if w != fec_committee_id:
                     cursor.execute("SELECT contributor_name FROM fec_contributions WHERE fec_committee_id = '" + w + "';")
                     try:
                         contributor_name = cursor.fetchone()[0]
-                    except MySQLdb.Error, e:
+                    except MySQLdb.Error as e:
                         handle_error(db, e)
-                    print w, contributor_name, cosine_sim[w]
+                    print(w, contributor_name, cosine_sim[w])
                 if index >= RANK_THRESHOLD:
                     break
 
         # Measure cosine similarity between different recipients. Each recipient is represented by a vector of final scores of pairs it belongs to.
         elif analysis == "2":
-            other_id = raw_input("Enter recipient committee's id: \n")
+            other_id = input("Enter recipient committee's id: \n")
             try:
                 check_recipient_id(other_id)
             except:
-                print "Invalid committee id, try again."
-                other_id = raw_input("Enter recipient committee's id: \n")
+                print("Invalid committee id, try again.")
+                other_id = input("Enter recipient committee's id: \n")
             try:
                 cosine_sim = {}
                 for j in range(1,adj_matrix_T.shape[0]):
@@ -742,46 +742,46 @@ def similarity_analysis(db, cursor):
 
                 cursor.execute("SELECT recipient_name FROM fec_contributions WHERE other_id = '" + other_id + "';")
                 recipient_name = cursor.fetchone()[0]
-            except MySQLdb.Error, e:
+            except MySQLdb.Error as e:
                 handle_error(db, e)
-            print "Top " + str(RANK_THRESHOLD) + " recipients most similar to " + other_id + " " + recipient_name + " along with cosine similarity scores are:"
+            print("Top " + str(RANK_THRESHOLD) + " recipients most similar to " + other_id + " " + recipient_name + " along with cosine similarity scores are:")
 
             for index, w in enumerate(sorted(cosine_sim, key=cosine_sim.get, reverse=True)):
                 if w != other_id:
                     cursor.execute("SELECT recipient_name FROM fec_contributions WHERE other_id = '" + w + "';")
                     try:
                        recipient_name = cursor.fetchone()[0]
-                    except MySQLdb.Error, e:
+                    except MySQLdb.Error as e:
                        handle_error(db, e)
-                    print w, recipient_name, cosine_sim[w]
+                    print(w, recipient_name, cosine_sim[w])
                 if index >= RANK_THRESHOLD:
                     break
 
         elif analysis == "3":
             # In this case, pairs will be represented by a vector made up of the six scores used in the computational of final score.
-            fec_committee_id = raw_input("Enter contributor's fec_committee_id: \n")
+            fec_committee_id = input("Enter contributor's fec_committee_id: \n")
             try:
                 check_contributor_id(fec_committee_id)
             except:
-                print "Invalid committee id, try again."
-                fec_committee_id = raw_input("Enter contributor's committee's id: \n")
+                print("Invalid committee id, try again.")
+                fec_committee_id = input("Enter contributor's committee's id: \n")
 
             cursor.execute("SELECT contributor_name FROM fec_contributions WHERE fec_committee_id = '" + fec_committee_id + "';")
             try:
                 contributor_name = cursor.fetchone()[0]
-            except MySQLdb.Error, e:
+            except MySQLdb.Error as e:
                 handle_error(db, e)
 
-            other_id = raw_input("Enter recipient's id: \n")
+            other_id = input("Enter recipient's id: \n")
             try:
                 check_recipient_id(other_id)
             except:
-                print "Invalid committee id, try again."
-                other_id = raw_input("Enter recipient's committee's id: \n")
+                print("Invalid committee id, try again.")
+                other_id = input("Enter recipient's committee's id: \n")
             cursor.execute("SELECT recipient_name FROM fec_contributions WHERE other_id = '" + other_id + "';")
             try:
                 recipient_name = cursor.fetchone()[0]
-            except MySQLdb.Error, e:
+            except MySQLdb.Error as e:
                 handle_error(db, e)
 
             try:
@@ -790,33 +790,33 @@ def similarity_analysis(db, cursor):
                 for p in pair_score_map:
                     cosine_sim[p] = np.dot(pair_score_map[key],pair_score_map[p])/(np.linalg.norm(pair_score_map[key])*np.linalg.norm(pair_score_map[p])) #cosine similarity as distance metric
 
-                print "Top " + str(RANK_THRESHOLD) + " contributor-recipient pairs most similar to pair " + fec_committee_id + " " + contributor_name + " and " + other_id + " " + recipient_name + " along with cosine similarity scores are:"
+                print("Top " + str(RANK_THRESHOLD) + " contributor-recipient pairs most similar to pair " + fec_committee_id + " " + contributor_name + " and " + other_id + " " + recipient_name + " along with cosine similarity scores are:")
 
                 for index, w in enumerate(sorted(cosine_sim, key=cosine_sim.get, reverse=True)):
                     if w != key:
                         cursor.execute("SELECT contributor_name FROM fec_contributions WHERE fec_committee_id = '" + w[0] + "';")
                         try:
                             contributor_name = cursor.fetchone()[0]
-                        except MySQLdb.Error, e:
+                        except MySQLdb.Error as e:
                             handle_error(db, e)
                         cursor.execute("SELECT recipient_name FROM fec_contributions WHERE other_id = '" + w[1] + "';")
                         try:
                             recipient_name = cursor.fetchone()[0]
-                        except MySQLdb.Error, e:
+                        except MySQLdb.Error as e:
                             handle_error(db, e)
-                        print w[0], contributor_name, w[1], recipient_name, cosine_sim[w]
+                        print(w[0], contributor_name, w[1], recipient_name, cosine_sim[w])
                     if index >= RANK_THRESHOLD:
                         break
             except:
-                print "Bedfellows couldn't find contributor-recipient pair entered as input in the database.\n"
+                print("Bedfellows couldn't find contributor-recipient pair entered as input in the database.\n")
 
         elif analysis == "4":
             while True:
                 try:
-                    RANK_THRESHOLD = int(raw_input("How many results would you like to display? Enter an integer number. \n"))
+                    RANK_THRESHOLD = int(input("How many results would you like to display? Enter an integer number. \n"))
                     break
                 except:
-                    print "Invalid input. Please try again."
+                    print("Invalid input. Please try again.")
 
         # This hidden option is used to measure internal consistency of scores through Cronbach's Alpha. Still in development.
         elif analysis == "5":
@@ -841,7 +841,7 @@ def similarity_analysis(db, cursor):
             sql.append("UNLOCK TABLES;")
             sql.append("ALTER TABLE five_sum ADD INDEX (fec_committee_id, contributor_name, other_id, recipient_name, five_sum);")
             commit_changes(db, cursor, sql)
-            print "Table five_sum"
+            print("Table five_sum")
 
             # Finally, we add weighted race_focus_scores to the five_sum table and get the full final score.
             sql = []
@@ -864,37 +864,37 @@ def similarity_analysis(db, cursor):
             sql.append("UNLOCK TABLES;")
             sql.append("ALTER TABLE final_sum ADD INDEX (fec_committee_id, other_id);")
             commit_changes(db, cursor, sql)
-            print "Table final_sum"
+            print("Table final_sum")
 
             cursor.execute("SELECT VAR_POP(exclusivity_score), VAR_POP(report_type_score), VAR_POP(periodicity_score), VAR_POP(maxed_out_score), VAR_POP(length_score), VAR_POP(race_focus_score), VAR_POP(final_sum), VAR_POP(four_sum), VAR_POP(two_sum) FROM final_sum;")
             try:
                variances = cursor.fetchone()
-               print variances
-            except MySQLdb.Error, e:
+               print(variances)
+            except MySQLdb.Error as e:
                handle_error(db, e)
             var_exclusivity = variances[0]
-            print "var_exclusivity = " + str(var_exclusivity)
+            print("var_exclusivity = " + str(var_exclusivity))
             var_report_type = variances[1]
-            print "var_report_type = " + str(var_report_type)
+            print("var_report_type = " + str(var_report_type))
             var_periodicity = variances[2]
-            print "var_periodicity = " + str(var_periodicity)
+            print("var_periodicity = " + str(var_periodicity))
             var_maxed_out = variances[3]
-            print "var_maxed_out = " + str(var_maxed_out)
+            print("var_maxed_out = " + str(var_maxed_out))
             var_length = variances[4]
-            print "var_length = " + str(var_length)
+            print("var_length = " + str(var_length))
             var_race_focus = variances[5]
-            print "var_race_focus = " + str(var_race_focus)
+            print("var_race_focus = " + str(var_race_focus))
             var_final = variances[6]
-            print "var_final = " + str(var_final)
+            print("var_final = " + str(var_final))
 
             K = 6.0   #number of scores computed
             sum_of_6_score_vars = var_exclusivity + var_report_type + var_periodicity + var_maxed_out + var_length + var_race_focus
-            print "sum of 6 variances: var_exclusivity + var_report_type + var_periodicity + var_maxed_out + var_length + var_race_focus"
-            print sum_of_6_score_vars
+            print("sum of 6 variances: var_exclusivity + var_report_type + var_periodicity + var_maxed_out + var_length + var_race_focus")
+            print(sum_of_6_score_vars)
 
             cronbach_alpha = (K/(K-1.0))*(1.0-((sum_of_6_score_vars)/var_final))
-            print "cronbach's alpha: "
-            print cronbach_alpha
+            print("cronbach's alpha: ")
+            print(cronbach_alpha)
 
         else:
             break

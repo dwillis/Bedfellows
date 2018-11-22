@@ -8,7 +8,7 @@ def commit_changes(db, cursor, sql):
         for q in sql:
             cursor.execute(q)
         db.commit()
-    except MySQLdb.Error, e:
+    except MySQLdb.Error as e:
         handle_error(db, e)
 
 def handle_error(db, e):
