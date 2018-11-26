@@ -1,5 +1,6 @@
 *.pyc
 *.sql
+csv/
 queries.txt
 explain_groupedbycycle.py
 main_old.py
