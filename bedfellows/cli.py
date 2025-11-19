@@ -368,6 +368,36 @@ def serve(ctx, port, host, no_browser):
 
 @cli.command()
 @click.pass_context
+def validate(ctx):
+    """Validate data quality and integrity."""
+    config = ctx.obj["config"]
+
+    console.print("[bold]Validating database...[/bold]\n")
+
+    # Initialize database
+    db_manager = DatabaseManager(config)
+    db = db_manager.get_database()
+    init_models(db)
+
+    try:
+        from bedfellows.validation import validate_data
+
+        results = validate_data(db)
+
+        # Results are already printed by validate_data
+        if results["valid"]:
+            console.print("\n[green]✓[/green] Data validation passed!", style="bold green")
+        else:
+            console.print(f"\n[red]✗[/red] Data validation failed with {len(results['errors'])} error(s)", style="bold red")
+            sys.exit(1)
+
+    except Exception as e:
+        console.print(f"[red]✗[/red] Error during validation: {e}", style="bold red")
+        sys.exit(1)
+
+
+@cli.command()
+@click.pass_context
 def status(ctx):
     """Show database status and statistics."""
     config = ctx.obj["config"]
@@ -448,6 +478,131 @@ def info(ctx):
         table.add_row(f"  {score_type}", str(weight))
 
     console.print(table)
+
+
+@cli.command()
+@click.option("--mode", type=click.Choice(["overall", "by-cycle"]), default="overall", help="Computation mode")
+@click.pass_context
+def compute(ctx, mode):
+    """Compute relationship scores from loaded data."""
+    config = ctx.obj["config"]
+
+    console.print(f"[bold]Computing {mode} relationship scores...[/bold]\n")
+
+    # Initialize database
+    db_manager = DatabaseManager(config)
+    db = db_manager.get_database()
+    init_models(db)
+
+    # Check if we have data
+    contrib_count = FecContributions.select().count()
+    if contrib_count == 0:
+        console.print("[red]✗[/red] No contribution data found!", style="bold red")
+        console.print("Please load data first using:")
+        console.print("  bedfellows load contributions <file>")
+        sys.exit(1)
+
+    console.print(f"Found {contrib_count:,} contribution records")
+
+    try:
+        if mode == "overall":
+            from bedfellows.calculators import OverallCalculator
+
+            calc_config = {
+                "weights": config.get_score_weights()
+            }
+            calculator = OverallCalculator(db, calc_config)
+            calculator.compute_scores()
+
+            # Show results summary
+            from bedfellows.models import FinalScores
+            total_scores = FinalScores.select().count()
+            console.print(f"\n[green]✓[/green] Computed {total_scores:,} relationship scores")
+
+        else:
+            console.print("[yellow]⚠[/yellow] By-cycle computation not yet implemented")
+            console.print("  Use 'overall' mode for now")
+            sys.exit(1)
+
+    except Exception as e:
+        console.print(f"[red]✗[/red] Error computing scores: {e}", style="bold red")
+        import traceback
+        if ctx.obj.get("verbose"):
+            traceback.print_exc()
+        sys.exit(1)
+
+
+@cli.command()
+@click.argument("query", required=False)
+@click.option("--limit", "-l", type=int, default=20, help="Number of results")
+@click.option("--donor", "-d", help="Filter by donor FEC ID")
+@click.option("--recipient", "-r", help="Filter by recipient FEC ID")
+@click.option("--min-score", "-s", type=float, help="Minimum score threshold")
+@click.pass_context
+def search(ctx, query, limit, donor, recipient, min_score):
+    """Search and analyze computed scores."""
+    config = ctx.obj["config"]
+
+    # Initialize database
+    db_manager = DatabaseManager(config)
+    db = db_manager.get_database()
+    init_models(db)
+
+    # Check if scores exist
+    score_count = FinalScores.select().count()
+    if score_count == 0:
+        console.print("[red]✗[/red] No scores found!", style="bold red")
+        console.print("Please compute scores first using:")
+        console.print("  bedfellows compute")
+        sys.exit(1)
+
+    # Build query
+    query_obj = FinalScores.select()
+
+    if donor:
+        query_obj = query_obj.where(FinalScores.fec_committee_id == donor)
+
+    if recipient:
+        query_obj = query_obj.where(FinalScores.other_id == recipient)
+
+    if min_score:
+        query_obj = query_obj.where(FinalScores.final_score >= min_score)
+
+    if query:
+        # Text search in names
+        query_obj = query_obj.where(
+            (FinalScores.contributor_name.contains(query.upper())) |
+            (FinalScores.recipient_name.contains(query.upper()))
+        )
+
+    # Order by score and limit
+    query_obj = query_obj.order_by(FinalScores.final_score.desc()).limit(limit)
+
+    results = list(query_obj)
+
+    if not results:
+        console.print("[yellow]No results found[/yellow]")
+        return
+
+    # Display results in a table
+    table = Table(title=f"Top {len(results)} Relationship Scores")
+    table.add_column("#", style="dim", width=4)
+    table.add_column("Donor", style="cyan", width=30)
+    table.add_column("Recipient", style="green", width=30)
+    table.add_column("Score", justify="right", style="bold yellow", width=8)
+    table.add_column("Count", justify="right", width=8)
+
+    for i, score in enumerate(results, 1):
+        table.add_row(
+            str(i),
+            score.contributor_name[:28] if score.contributor_name else "N/A",
+            score.recipient_name[:28] if score.recipient_name else "N/A",
+            f"{score.final_score:.4f}",
+            str(score.count)
+        )
+
+    console.print(table)
+    console.print(f"\nShowing {len(results)} of {score_count:,} total scores")
 
 
 def main():
