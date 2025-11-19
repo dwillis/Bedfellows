@@ -1,0 +1,39 @@
+# Bedfellows - Modern Python 3 Dependencies
+# Core dependencies for FEC campaign finance analysis
+
+# ORM and Database
+peewee>=3.17.0,<4.0.0          # Lightweight ORM with multi-database support
+
+# Data Analysis
+pandas>=2.0.0,<3.0.0           # Modern data manipulation
+numpy>=1.24.0,<2.0.0           # Numerical computing
+scipy>=1.10.0,<2.0.0           # Scientific computing
+
+# HTTP and Data Fetching
+requests>=2.31.0,<3.0.0        # HTTP library for downloading FEC data
+
+# CLI and User Interface
+click>=8.1.0,<9.0.0            # Command-line interface framework
+tqdm>=4.65.0,<5.0.0            # Progress bars
+rich>=13.0.0,<14.0.0           # Rich terminal formatting
+
+# Configuration
+python-dotenv>=1.0.0,<2.0.0    # Environment variable management
+pyyaml>=6.0,<7.0               # YAML configuration support
+
+# Web Interface
+datasette>=0.64.0,<1.0.0       # Data exploration web interface
+
+# Database Drivers
+# SQLite3 is included with Python
+# Optional: uncomment if you need MySQL or PostgreSQL
+# mysqlclient>=2.2.0,<3.0.0    # MySQL driver
+# psycopg2-binary>=2.9.0,<3.0.0 # PostgreSQL driver
+
+# Optional Export Formats
+# openpyxl>=3.1.0,<4.0.0       # Excel export support
+# pyarrow>=13.0.0,<14.0.0      # Parquet export support
+
+# Utilities
+python-dateutil>=2.8.0,<3.0.0  # Date/time utilities
+pytz>=2023.3                   # Timezone support
