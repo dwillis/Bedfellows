@@ -13,19 +13,13 @@ class ContributionFetcher(BaseFetcher):
     """Download FEC committee contribution files."""
 
     def fetch_contributions(
-        self, cycle: str, contribution_type: str = "committee"
+        self, cycle: str
     ) -> List[Path]:
         """
-        Download committee-to-committee contribution file for a cycle.
-
-        The FEC provides several types of contribution files:
-        - Committee contributions: pas2{YY}.zip (our primary focus)
-        - Individual contributions: indiv{YY}.zip
-        - Candidate contributions: oth{YY}.zip
+        Download committee-to-committee contribution file (pas2) for a cycle.
 
         Args:
             cycle: Election cycle (e.g., "2024", "22")
-            contribution_type: Type of contributions ("committee", "individual", "other")
 
         Returns:
             List of downloaded file paths
@@ -38,31 +32,19 @@ class ContributionFetcher(BaseFetcher):
             cycle_4digit = cycle
             cycle_2digit = cycle[2:]  # Convert "2024" -> "24"
 
-        # Determine filename based on type
-        if contribution_type == "committee":
-            filename = f"pas2{cycle_2digit}.zip"
-        elif contribution_type == "individual":
-            filename = f"indiv{cycle_2digit}.zip"
-        elif contribution_type == "other":
-            filename = f"oth{cycle_2digit}.zip"
-        else:
-            raise ValueError(
-                f"Invalid contribution_type: {contribution_type}. "
-                "Must be 'committee', 'individual', or 'other'"
-            )
-
-        # Download and extract
+        # Download pas2 (committee-to-committee contributions) file
+        filename = f"pas2{cycle_2digit}.zip"
         url = self.build_url(cycle_4digit, filename)
 
         try:
             extracted = self.download_and_extract(url)
             logger.info(
-                f"Downloaded {contribution_type} contributions for cycle {cycle}"
+                f"Downloaded committee contributions for cycle {cycle}"
             )
             return extracted
         except Exception as e:
             logger.error(
-                f"Error downloading {contribution_type} contributions for cycle {cycle}: {e}"
+                f"Error downloading committee contributions for cycle {cycle}: {e}"
             )
             raise
 

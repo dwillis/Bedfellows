@@ -47,16 +47,16 @@ class TestCandidateFetcher:
         fetcher = CandidateFetcher()
         
         # Test 2026 cycle
-        url = fetcher.build_url("2026", "weball26.zip")
-        expected = "https://cg-519a459a-0ea3-42c2-b7bc-fa1143481f74.s3-us-gov-west-1.amazonaws.com/bulk-downloads/2026/weball26.zip"
+        url = fetcher.build_url("2026", "cn26.zip")
+        expected = "https://cg-519a459a-0ea3-42c2-b7bc-fa1143481f74.s3-us-gov-west-1.amazonaws.com/bulk-downloads/2026/cn26.zip"
         assert url == expected
         
     def test_2024_cycle_url(self):
         """Test 2024 cycle URL."""
         fetcher = CandidateFetcher()
         
-        url = fetcher.build_url("2024", "weball24.zip")
-        expected = "https://cg-519a459a-0ea3-42c2-b7bc-fa1143481f74.s3-us-gov-west-1.amazonaws.com/bulk-downloads/2024/weball24.zip"
+        url = fetcher.build_url("2024", "cn24.zip")
+        expected = "https://cg-519a459a-0ea3-42c2-b7bc-fa1143481f74.s3-us-gov-west-1.amazonaws.com/bulk-downloads/2024/cn24.zip"
         assert url == expected
         
     def test_all_cycles_url(self):

@@ -19,7 +19,7 @@ class CandidateFetcher(BaseFetcher):
         Download candidate master file(s).
 
         The FEC candidate master file contains information about all federal candidates.
-        File format: cn.txt (all cycles) or weball{YY}.zip (specific cycle)
+        File format: cn.txt (all cycles) or cn{YY}.zip (specific cycle)
 
         Args:
             cycle: Specific cycle to download (e.g., "2024", "22")
@@ -46,7 +46,7 @@ class CandidateFetcher(BaseFetcher):
                 cycle_2digit = cycle[2:]  # Convert "2024" -> "24"
 
             # Download specific cycle ZIP
-            filename = f"weball{cycle_2digit}.zip"
+            filename = f"cn{cycle_2digit}.zip"
             url = self.build_url(cycle_4digit, filename)
 
             try:

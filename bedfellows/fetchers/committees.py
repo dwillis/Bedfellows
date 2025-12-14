@@ -19,7 +19,7 @@ class CommitteeFetcher(BaseFetcher):
         Download committee master file(s).
 
         The FEC committee master file contains information about all political committees.
-        File format: cm.txt (all cycles) or webl{YY}.zip (specific cycle)
+        File format: cm.txt (all cycles) or cm{YY}.zip (specific cycle)
 
         Args:
             cycle: Specific cycle to download (e.g., "2024", "22")
@@ -46,7 +46,7 @@ class CommitteeFetcher(BaseFetcher):
                 cycle_2digit = cycle[2:]  # Convert "2024" -> "24"
 
             # Download specific cycle ZIP
-            filename = f"webl{cycle_2digit}.zip"
+            filename = f"cm{cycle_2digit}.zip"
             url = self.build_url(cycle_4digit, filename)
 
             try:
