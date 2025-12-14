@@ -17,7 +17,7 @@ class BaseFetcher:
 
     def __init__(
         self,
-        base_url: str = "https://www.fec.gov/files/bulk-downloads/",
+        base_url: str = "https://cg-519a459a-0ea3-42c2-b7bc-fa1143481f74.s3-us-gov-west-1.amazonaws.com/bulk-downloads",
         data_dir: str = "data/downloads",
     ):
         """

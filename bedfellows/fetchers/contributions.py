@@ -30,17 +30,21 @@ class ContributionFetcher(BaseFetcher):
         Returns:
             List of downloaded file paths
         """
-        # Format cycle as 2-digit year
-        if len(cycle) == 4:
-            cycle = cycle[2:]  # Convert "2024" -> "24"
+        # Format cycle as 4-digit year and 2-digit year
+        if len(cycle) == 2:
+            cycle_2digit = cycle
+            cycle_4digit = "20" + cycle  # Convert "24" -> "2024"
+        else:
+            cycle_4digit = cycle
+            cycle_2digit = cycle[2:]  # Convert "2024" -> "24"
 
         # Determine filename based on type
         if contribution_type == "committee":
-            filename = f"pas2{cycle}.zip"
+            filename = f"pas2{cycle_2digit}.zip"
         elif contribution_type == "individual":
-            filename = f"indiv{cycle}.zip"
+            filename = f"indiv{cycle_2digit}.zip"
         elif contribution_type == "other":
-            filename = f"oth{cycle}.zip"
+            filename = f"oth{cycle_2digit}.zip"
         else:
             raise ValueError(
                 f"Invalid contribution_type: {contribution_type}. "
@@ -48,7 +52,7 @@ class ContributionFetcher(BaseFetcher):
             )
 
         # Download and extract
-        url = self.build_url("bulk-downloads", cycle, filename)
+        url = self.build_url(cycle_4digit, filename)
 
         try:
             extracted = self.download_and_extract(url)

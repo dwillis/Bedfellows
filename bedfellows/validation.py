@@ -8,7 +8,7 @@ import logging
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 
-from peewee import Database
+from peewee import Database, fn
 
 from bedfellows.models import (
     FecCandidates,

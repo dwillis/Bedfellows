@@ -9,35 +9,34 @@ from bedfellows.fetchers.candidates import CandidateFetcher
 class TestBaseFetcher:
     """Tests for BaseFetcher class."""
 
-    def test_build_url_no_duplication(self):
-        """Test that build_url doesn't duplicate path segments."""
-        fetcher = BaseFetcher(base_url="https://www.fec.gov/files/bulk-downloads/")
+    def test_build_url_with_year_path(self):
+        """Test that build_url constructs year-based paths correctly."""
+        fetcher = BaseFetcher()
         
-        # Test with trailing slash on base_url
-        url = fetcher.build_url("bulk-downloads", "weball26.zip")
-        assert url == "https://www.fec.gov/files/bulk-downloads/bulk-downloads/weball26.zip"
-        assert "bulk-downloads/bulk-downloads/bulk-downloads" not in url
+        # Test with year and filename
+        url = fetcher.build_url("2026", "weball26.zip")
+        assert url == "https://cg-519a459a-0ea3-42c2-b7bc-fa1143481f74.s3-us-gov-west-1.amazonaws.com/bulk-downloads/2026/weball26.zip"
         
     def test_build_url_no_trailing_slash(self):
         """Test build_url with base URL without trailing slash."""
-        fetcher = BaseFetcher(base_url="https://www.fec.gov/files/bulk-downloads")
+        fetcher = BaseFetcher(base_url="https://example.com/base")
         
-        url = fetcher.build_url("bulk-downloads", "weball26.zip")
-        assert url == "https://www.fec.gov/files/bulk-downloads/bulk-downloads/weball26.zip"
+        url = fetcher.build_url("2024", "file.zip")
+        assert url == "https://example.com/base/2024/file.zip"
         
     def test_build_url_with_leading_slash(self):
         """Test build_url with parts that have leading slashes."""
-        fetcher = BaseFetcher(base_url="https://www.fec.gov/files/bulk-downloads/")
+        fetcher = BaseFetcher(base_url="https://example.com/base/")
         
-        url = fetcher.build_url("/bulk-downloads", "/weball26.zip")
-        assert url == "https://www.fec.gov/files/bulk-downloads/bulk-downloads/weball26.zip"
+        url = fetcher.build_url("/2024", "/file.zip")
+        assert url == "https://example.com/base/2024/file.zip"
         
     def test_build_url_single_part(self):
         """Test build_url with single part."""
-        fetcher = BaseFetcher(base_url="https://www.fec.gov/files/bulk-downloads")
+        fetcher = BaseFetcher()
         
         url = fetcher.build_url("cn.txt")
-        assert url == "https://www.fec.gov/files/bulk-downloads/cn.txt"
+        assert url == "https://cg-519a459a-0ea3-42c2-b7bc-fa1143481f74.s3-us-gov-west-1.amazonaws.com/bulk-downloads/cn.txt"
 
 
 class TestCandidateFetcher:
@@ -48,17 +47,22 @@ class TestCandidateFetcher:
         fetcher = CandidateFetcher()
         
         # Test 2026 cycle
-        url = fetcher.build_url("bulk-downloads", "weball26.zip")
-        expected = "https://www.fec.gov/files/bulk-downloads/bulk-downloads/weball26.zip"
+        url = fetcher.build_url("2026", "weball26.zip")
+        expected = "https://cg-519a459a-0ea3-42c2-b7bc-fa1143481f74.s3-us-gov-west-1.amazonaws.com/bulk-downloads/2026/weball26.zip"
         assert url == expected
         
-        # Ensure no duplication
-        assert url.count("bulk-downloads") == 2  # Should appear exactly twice
+    def test_2024_cycle_url(self):
+        """Test 2024 cycle URL."""
+        fetcher = CandidateFetcher()
+        
+        url = fetcher.build_url("2024", "weball24.zip")
+        expected = "https://cg-519a459a-0ea3-42c2-b7bc-fa1143481f74.s3-us-gov-west-1.amazonaws.com/bulk-downloads/2024/weball24.zip"
+        assert url == expected
         
     def test_all_cycles_url(self):
         """Test that all cycles file URL is constructed correctly."""
         fetcher = CandidateFetcher()
         
-        url = fetcher.build_url("bulk-downloads", "cn.txt")
-        expected = "https://www.fec.gov/files/bulk-downloads/bulk-downloads/cn.txt"
+        url = fetcher.build_url("cn.txt")
+        expected = "https://cg-519a459a-0ea3-42c2-b7bc-fa1143481f74.s3-us-gov-west-1.amazonaws.com/bulk-downloads/cn.txt"
         assert url == expected
