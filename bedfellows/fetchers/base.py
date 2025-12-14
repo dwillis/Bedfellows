@@ -148,7 +148,8 @@ class BaseFetcher:
         Returns:
             Complete URL
         """
-        url = self.base_url
+        url = self.base_url.rstrip('/')
         for part in parts:
-            url = urljoin(url + "/", part)
+            part = part.lstrip('/')
+            url = f"{url}/{part}"
         return url
