@@ -144,23 +144,16 @@ def fetch_committees(ctx, cycle, all_cycles):
 
 @fetch.command("contributions")
 @click.argument("cycle")
-@click.option(
-    "--type",
-    "contrib_type",
-    type=click.Choice(["committee", "individual", "other"]),
-    default="committee",
-    help="Type of contributions",
-)
 @click.pass_context
-def fetch_contributions(ctx, cycle, contrib_type):
-    """Download FEC contribution files for a cycle."""
+def fetch_contributions(ctx, cycle):
+    """Download FEC committee contribution files (pas2) for a cycle."""
     config = ctx.obj["config"]
     data_dir = config["data_dir"]
 
     fetcher = ContributionFetcher(data_dir=data_dir)
 
     try:
-        files = fetcher.fetch_contributions(cycle, contribution_type=contrib_type)
+        files = fetcher.fetch_contributions(cycle)
         console.print(f"[green]✓[/green] Downloaded {len(files)} file(s)")
         for f in files:
             console.print(f"  {f}")
@@ -494,8 +487,8 @@ def compute(ctx, mode):
     db = db_manager.get_database()
     init_models(db)
 
-    # Check if we have data
-    contrib_count = FecContributions.select().count()
+    # Check if we have data (check raw contributions, filtering happens during compute)
+    contrib_count = FecCommitteeContributions.select().count()
     if contrib_count == 0:
         console.print("[red]✗[/red] No contribution data found!", style="bold red")
         console.print("Please load data first using:")

@@ -45,12 +45,12 @@ class CommitteeFetcher(BaseFetcher):
                 cycle_4digit = cycle
                 cycle_2digit = cycle[2:]  # Convert "2024" -> "24"
 
-            # Download specific cycle ZIP
+            # Download specific cycle ZIP to data/downloads
             filename = f"cm{cycle_2digit}.zip"
             url = self.build_url(cycle_4digit, filename)
 
             try:
-                extracted = self.download_and_extract(url)
+                extracted = self.download_and_extract(url, output_dir=self.data_dir)
                 files.extend(extracted)
             except Exception as e:
                 logger.error(f"Error downloading committee data for cycle {cycle}: {e}")

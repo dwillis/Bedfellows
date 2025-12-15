@@ -426,12 +426,13 @@ class OverallCalculator(BaseCalculator):
         # This is a simplified version combining only the scores we computed
         query = """
             INSERT INTO final_scores
-            (fec_committee_id, contributor_name, other_id, recipient_name, count,
+            (fec_committee_id, contributor_name, committee_name, other_id, recipient_name, count,
              exclusivity_score, report_type_score, periodicity_score,
              maxed_out_score, length_score, race_focus_score, final_score)
             SELECT
                 fc.fec_committee_id,
-                fc.contributor_name,
+                cm.name as contributor_name,
+                fc.contributor_name as committee_name,
                 fc.other_id,
                 fc.recipient_name,
                 COUNT(*) as count,
@@ -444,6 +445,8 @@ class OverallCalculator(BaseCalculator):
                 (COALESCE(es.amount / es.total_by_pac, 0) * {w_excl} +
                  COALESCE(ls.length_score, 0) * {w_len}) / ({w_excl} + {w_len}) as final_score
             FROM fec_contributions fc
+            LEFT JOIN fec_committees cm
+                ON fc.fec_committee_id = cm.fecid
             LEFT JOIN exclusivity_scores es
                 ON fc.fec_committee_id = es.fec_committee_id
                 AND fc.other_id = es.other_id
@@ -451,7 +454,7 @@ class OverallCalculator(BaseCalculator):
                 ON fc.fec_committee_id = ls.fec_committee_id
                 AND fc.other_id = ls.other_id
             GROUP BY fc.fec_committee_id, fc.other_id, fc.contributor_name, fc.recipient_name,
-                     es.amount, es.total_by_pac, ls.length_score
+                     cm.name, es.amount, es.total_by_pac, ls.length_score
         """.format(
             w_excl=self.weights.get('exclusivity', 1.0),
             w_len=self.weights.get('length', 1.0)

@@ -110,10 +110,10 @@ class FecCommitteeContributions(BaseModel):
     @classmethod
     def load_from_csv(cls, csv_path: str, batch_size: int = 1000) -> int:
         """
-        Load data from CSV file.
+        Load data from pipe-delimited FEC file.
 
         Args:
-            csv_path: Path to CSV file
+            csv_path: Path to FEC file
             batch_size: Number of records per batch
 
         Returns:
@@ -123,18 +123,44 @@ class FecCommitteeContributions(BaseModel):
         if not csv_file.exists():
             raise FileNotFoundError(f"CSV file not found: {csv_path}")
 
+        # FEC committee contributions file column names
+        fieldnames = [
+            "fec_committee_id",
+            "amendment",
+            "report_type",
+            "pgi",
+            "microfilm",
+            "transaction_type",
+            "entity_type",
+            "contributor_name",
+            "city",
+            "state",
+            "zipcode",
+            "employer",
+            "occupation",
+            "date",
+            "amount",
+            "other_id",
+            "recipient_name",
+            "transaction_id",
+            "filing_id",
+            "memo_code",
+            "memo_text",
+            "fec_record_number",
+        ]
+
         count = 0
         with open(csv_file) as f, cls._meta.database.atomic():
-            rows = DictReader(f)
+            rows = DictReader(f, fieldnames=fieldnames, delimiter="|")
             logger.info(f"Loading {cls._meta.table_name} from {csv_path}")
 
             for batch in tqdm(chunked(rows, batch_size), desc="Loading batches"):
                 src_data = []
                 for row in batch:
-                    # Parse date field
-                    if row.get("date") and row["date"] != "":
+                    # Parse date field (FEC format: MMDDYYYY)
+                    if row.get("date") and row["date"] != "" and len(row["date"]) == 8:
                         try:
-                            row["date"] = datetime.strptime(row["date"], "%m/%d/%Y")
+                            row["date"] = datetime.strptime(row["date"], "%m%d%Y")
                         except ValueError:
                             row["date"] = None
                     else:
@@ -146,6 +172,11 @@ class FecCommitteeContributions(BaseModel):
                             row["amount"] = int(row["amount"])
                         except (ValueError, TypeError):
                             row["amount"] = None
+
+                    # Set fields not in FEC file
+                    row["cycle"] = None  # To be calculated from date or set externally
+                    row["recipient_state"] = None
+                    row["recipient_party"] = None
 
                     src_data.append(row)
 
@@ -184,26 +215,43 @@ class FecCommittees(BaseModel):
 
     @classmethod
     def load_from_csv(cls, csv_path: str, batch_size: int = 1000) -> int:
-        """Load committee data from CSV file."""
+        """Load committee data from pipe-delimited FEC file."""
         csv_file = Path(csv_path)
         if not csv_file.exists():
             raise FileNotFoundError(f"CSV file not found: {csv_path}")
 
+        # FEC committee file column names
+        fieldnames = [
+            "fecid",
+            "name",
+            "treasurer",
+            "address_one",
+            "address_two",
+            "city",
+            "state",
+            "zip",
+            "designation",
+            "committee_type",
+            "party",
+            "filing_frequency",
+            "interest_group",
+            "organization",
+            "fec_candidate_id",
+        ]
+
         count = 0
         with open(csv_file) as f, cls._meta.database.atomic():
-            rows = DictReader(f)
+            rows = DictReader(f, fieldnames=fieldnames, delimiter="|")
             logger.info(f"Loading {cls._meta.table_name} from {csv_path}")
 
             for batch in tqdm(chunked(rows, batch_size), desc="Loading batches"):
                 src_data = []
                 for row in batch:
-                    # Convert boolean fields
-                    row["is_leadership"] = (
-                        True if row.get("is_leadership") == "t" else False
-                    )
-                    row["is_super_pac"] = (
-                        True if row.get("is_super_pac") == "t" else False
-                    )
+                    # Set default values for fields not in FEC file
+                    row["cycle"] = None  # To be set externally or calculated
+                    row["is_leadership"] = False
+                    # Detect Super PACs by committee type 'O' (independent expenditure-only)
+                    row["is_super_pac"] = row.get("committee_type") == "O"
                     src_data.append(row)
 
                 if src_data:
@@ -240,14 +288,33 @@ class FecCandidates(BaseModel):
 
     @classmethod
     def load_from_csv(cls, csv_path: str, batch_size: int = 1000) -> int:
-        """Load candidate data from CSV file."""
+        """Load candidate data from pipe-delimited FEC file."""
         csv_file = Path(csv_path)
         if not csv_file.exists():
             raise FileNotFoundError(f"CSV file not found: {csv_path}")
 
+        # FEC candidate file column names
+        fieldnames = [
+            "fecid",
+            "name",
+            "party",
+            "cycle",
+            "office_state",
+            "branch",
+            "district",
+            "status",
+            "cand_status",
+            "fec_committee_id",
+            "address_one",
+            "address_two",
+            "city",
+            "state",
+            "zip",
+        ]
+
         count = 0
         with open(csv_file) as f:
-            rows = DictReader(f)
+            rows = DictReader(f, fieldnames=fieldnames, delimiter="|")
             src_data = list(rows)
 
         logger.info(f"Loading {len(src_data)} records into {cls._meta.table_name}")
@@ -827,6 +894,7 @@ class FinalScores(BaseModel):
 
     fec_committee_id = CharField(max_length=9, null=False, index=True)
     contributor_name = CharField(max_length=200)
+    committee_name = CharField(max_length=200, null=True)
     other_id = CharField(max_length=9, null=False, index=True)
     recipient_name = CharField(max_length=200)
     count = IntegerField()

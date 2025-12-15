@@ -1,6 +1,6 @@
 # Bedfellows
 
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 **Modern Python 3 tool for analyzing Federal Election Commission campaign finance relationships**
@@ -14,7 +14,7 @@ Originally developed by Nikolas Iubel during an internship with the Interactive 
 ## What's New in Version 2.0
 
 🎉 **Major Modernization**:
-- ✅ **Python 3.8+** - Fully modern Python with no legacy code
+- ✅ **Python 3.12+** - Fully modern Python with no legacy code
 - ✅ **SQLite by default** - No database server required (MySQL and PostgreSQL still supported)
 - ✅ **Multiple export formats** - JSON, CSV, and interactive web interface via Datasette
 - ✅ **FEC data fetcher** - Automatically download data from fec.gov
@@ -52,35 +52,43 @@ These are combined into a **final relationship score** (0-1 scale) that quantifi
 ## Installation
 
 ### Requirements
-- Python 3.8 or higher
+- Python 3.12 or higher
+- [uv](https://github.com/astral-sh/uv)
 - (Optional) MySQL 8+ or PostgreSQL 13+ if not using SQLite
 
-### Quick Start
+### Quick Start with uv (Recommended)
 
 ```bash
+# Install uv if you haven't already
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
 # Clone the repository
 git clone https://github.com/dwillis/Bedfellows.git
 cd Bedfellows
 
-# Create virtual environment (recommended)
+# Initialize uv project and install dependencies
+uv sync
+```
+
+### Alternative: Using pip
+
+```bash
+# Create virtual environment
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 # Install Bedfellows
 pip install -e .
-
-# Or install from requirements
-pip install -r requirements.txt
 ```
 
 ### Optional: MySQL or PostgreSQL Support
 
 ```bash
 # For MySQL
-pip install -e ".[mysql]"
+uv add pymysql cryptography
 
 # For PostgreSQL
-pip install -e ".[postgresql]"
+uv add psycopg2-binary
 ```
 
 ---
@@ -109,22 +117,22 @@ bedfellows init
 
 ```bash
 # Download candidate data
-bedfellows fetch candidates --cycle 2024
+bedfellows fetch candidates --cycle 2026
 
 # Download committee data
-bedfellows fetch committees --cycle 2024
+bedfellows fetch committees --cycle 2026
 
 # Download contribution data
-bedfellows fetch contributions 2024
+bedfellows fetch contributions 2026
 ```
 
 ### 4. Load Data
 
 ```bash
 # Load downloaded data into database
-bedfellows load candidates data/downloads/cn.txt
-bedfellows load committees data/downloads/cm.txt
-bedfellows load contributions data/downloads/pas2_24.txt
+bedfellows load candidates data/cn.txt
+bedfellows load committees data/cm.txt
+bedfellows load contributions data/itpas2.txt
 ```
 
 ### 5. Explore with Web Interface
@@ -407,10 +415,10 @@ bedfellows/
 
 ```bash
 # Install development dependencies
-pip install -r requirements-dev.txt
+uv add --dev pytest pytest-cov pytest-mock black ruff mypy
 
 # Run tests
-pytest
+uv run pytest
 
 # With coverage
 pytest --cov=bedfellows
@@ -420,13 +428,13 @@ pytest --cov=bedfellows
 
 ```bash
 # Format code
-black bedfellows/
+uv run black bedfellows/
 
 # Lint
-ruff bedfellows/
+uv run ruff bedfellows/
 
 # Type check
-mypy bedfellows/
+uv run mypy bedfellows/
 ```
 
 ---
@@ -438,7 +446,7 @@ If you're upgrading from the original Bedfellows:
 ### Key Changes
 
 1. **Database**: MySQL is optional now; SQLite is the default
-2. **Python**: Requires Python 3.8+ (no Python 2 support)
+2. **Python**: Requires Python 3.12+ (no Python 2 support)
 3. **CLI**: New command structure (see Usage above)
 4. **Configuration**: Use `.env` or `config.ini` instead of hardcoded values
 
@@ -449,10 +457,10 @@ If you're upgrading from the original Bedfellows:
 mysqldump fec > fec_backup.sql
 
 # 2. Install new version
-pip install -e .
+uv sync
 
 # 3. Initialize new database (SQLite)
-bedfellows init
+uv run bedfellows init
 
 # 4. (Optional) Export existing data and reimport
 # Or continue using MySQL by setting DATABASE_TYPE=mysql in .env

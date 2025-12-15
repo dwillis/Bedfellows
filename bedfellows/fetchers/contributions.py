@@ -32,12 +32,12 @@ class ContributionFetcher(BaseFetcher):
             cycle_4digit = cycle
             cycle_2digit = cycle[2:]  # Convert "2024" -> "24"
 
-        # Download pas2 (committee-to-committee contributions) file
+        # Download pas2 (committee-to-committee contributions) file to data/downloads
         filename = f"pas2{cycle_2digit}.zip"
         url = self.build_url(cycle_4digit, filename)
 
         try:
-            extracted = self.download_and_extract(url)
+            extracted = self.download_and_extract(url, output_dir=self.data_dir)
             logger.info(
                 f"Downloaded committee contributions for cycle {cycle}"
             )

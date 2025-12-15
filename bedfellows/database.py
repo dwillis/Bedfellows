@@ -55,6 +55,8 @@ class DatabaseManager:
             # Ensure directory exists
             db_path = Path(db_config["database"])
             db_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            db_exists = db_path.exists()
 
             self._database = SqliteDatabase(
                 db_config["database"],
@@ -66,7 +68,11 @@ class DatabaseManager:
                     "synchronous": 0,  # Faster writes (safe with WAL)
                 },
             )
-            logger.info(f"Initialized SQLite database: {db_config['database']}")
+            
+            if db_exists:
+                logger.info(f"Connected to SQLite database: {db_config['database']}")
+            else:
+                logger.info(f"Created new SQLite database: {db_config['database']}")
 
         elif db_type == "mysql":
             self._database = MySQLDatabase(
